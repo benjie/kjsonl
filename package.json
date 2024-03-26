@@ -9,6 +9,7 @@
     "@graphile/lru": "^4.11.0"
   },
   "scripts": {
+    "prepack": "tsc",
     "test": "node --test"
   },
   "repository": {
