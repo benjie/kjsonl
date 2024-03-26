@@ -1,5 +1,6 @@
 import { open, FileHandle } from "fs/promises";
 import LRU from "@graphile/lru";
+import { FSWatcher, watch } from "fs";
 
 const NEWLINE = "\n".charCodeAt(0);
 const DQUOT = '"'.charCodeAt(0);
@@ -145,6 +146,8 @@ export class KJSONLGetter {
     KJSONLGetter["_getKeysAndOffsets"]
   > | null = null;
   private _lru: LRU<string, Promise<any> | any>;
+  private _watcher: FSWatcher | null = null;
+  private _released = false;
   constructor(
     private filePath: string,
     options?: { lruMaxLength?: number },
@@ -165,7 +168,14 @@ export class KJSONLGetter {
   }
 
   private async _getKeysAndOffsets() {
+    if (this._released) {
+      throw new Error(`This instance has been released`);
+    }
     this._offsets = new Map();
+    this._watcher = watch(this.filePath, { persistent: true }, (change) => {
+      console.log("Refreshing");
+      this.refresh();
+    });
     this._handle = await open(this.filePath, "r");
     for await (const lineDetails of kjsonlLines(this._handle)) {
       const { keyIsJSON, keyBuffer, valueStart, valueEnd } = lineDetails;
@@ -178,6 +188,9 @@ export class KJSONLGetter {
   }
 
   public get(key: string) {
+    if (this._released) {
+      throw new Error(`This instance has been released`);
+    }
     const existingPromise = this._lru.get(key);
     if (existingPromise !== undefined) {
       return existingPromise;
@@ -202,11 +215,15 @@ export class KJSONLGetter {
   }
 
   public async refresh() {
+    if (this._released) {
+      return;
+    }
     await this._closeEverything();
     return this.init();
   }
 
   public async release() {
+    this._released = true;
     await this._closeEverything();
   }
 
@@ -214,11 +231,19 @@ export class KJSONLGetter {
    * Also used from 'refresh', so make sure we can restore things if we need to
    */
   private async _closeEverything() {
-    await this._getKeysAndOffsetsPromise;
+    try {
+      await this._getKeysAndOffsetsPromise;
+    } catch (e) {
+      // ignore
+    }
     // Synchronous from here on out!
     if (this._handle) {
       this._handle.close().catch((e) => console.error(e));
       this._handle = null;
+    }
+    if (this._watcher) {
+      this._watcher.close();
+      this._watcher = null;
     }
     this._offsets = null;
   }

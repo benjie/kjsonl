@@ -1,14 +1,21 @@
 // @ts-check
 
 import * as assert from "node:assert";
-import { describe, it } from "node:test";
+import { describe, it, before, after } from "node:test";
 
 import { KJSONLGetter } from "../dist/index.js";
 
 const __dirname = new URL(".", import.meta.url).pathname;
 
 describe("KJSONLGetter", async () => {
-  const getter = new KJSONLGetter(`${__dirname}/sample.kjsonl`);
+  /** @type {KJSONLGetter} */
+  let getter;
+  before(() => {
+    getter = new KJSONLGetter(`${__dirname}/sample.kjsonl`);
+  });
+  after(async () => {
+    await getter.release();
+  });
 
   it("can read a key that exists", async () => {
     const value = await getter.get("simple_key");
