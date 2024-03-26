@@ -153,7 +153,7 @@ export class KJSONLGetter {
     this._lru = new LRU({ maxLength: lruMaxLength });
   }
 
-  public async initialize() {
+  public async init() {
     await this.getKeysAndOffsets();
   }
 
@@ -201,7 +201,7 @@ export class KJSONLGetter {
 
   public async refresh() {
     await this._closeEverything();
-    return this.initialize();
+    return this.init();
   }
 
   public async release() {
