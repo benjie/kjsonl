@@ -144,7 +144,7 @@ export class KJSONLGetter {
   private _getKeysAndOffsetsPromise: ReturnType<
     KJSONLGetter["_getKeysAndOffsets"]
   > | null = null;
-  private _lru: LRU<string, Promise<any>>;
+  private _lru: LRU<string, Promise<any> | any>;
   constructor(
     private filePath: string,
     options?: { lruMaxLength?: number },
@@ -179,7 +179,7 @@ export class KJSONLGetter {
 
   public get(key: string) {
     const existingPromise = this._lru.get(key);
-    if (existingPromise) {
+    if (existingPromise !== undefined) {
       return existingPromise;
     } else {
       const promise = (async () => {
@@ -191,7 +191,9 @@ export class KJSONLGetter {
           const [start, end] = details;
           const buffer = Buffer.alloc(end - start);
           await this._handle!.read(buffer, 0, end - start, start);
-          return JSON.parse(buffer.toString("utf8"));
+          const value = JSON.parse(buffer.toString("utf8"));
+          this._lru.set(key, value);
+          return value;
         }
       })();
       this._lru.set(key, promise);
