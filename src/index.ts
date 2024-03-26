@@ -148,12 +148,14 @@ export class KJSONLGetter {
   private _lru: LRU<string, Promise<any> | any>;
   private _watcher: FSWatcher | null = null;
   private _released = false;
+  private _shouldWatch: boolean;
   constructor(
     private filePath: string,
-    options?: { lruMaxLength?: number },
+    options?: { lruMaxLength?: number; watch?: boolean },
   ) {
-    const { lruMaxLength = 1000 } = options ?? {};
+    const { lruMaxLength = 1000, watch = true } = options ?? {};
     this._lru = new LRU({ maxLength: lruMaxLength });
+    this._shouldWatch = watch;
   }
 
   public async init() {
@@ -172,10 +174,12 @@ export class KJSONLGetter {
       throw new Error(`This instance has been released`);
     }
     this._offsets = new Map();
-    this._watcher = watch(this.filePath, { persistent: true }, (change) => {
-      console.log("Refreshing");
-      this.refresh();
-    });
+    if (this._shouldWatch) {
+      this._watcher = watch(this.filePath, { persistent: true }, (change) => {
+        console.log("Refreshing");
+        this.refresh();
+      });
+    }
     this._handle = await open(this.filePath, "r");
     for await (const lineDetails of kjsonlLines(this._handle)) {
       const { keyIsJSON, keyBuffer, valueStart, valueEnd } = lineDetails;
