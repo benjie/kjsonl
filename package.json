@@ -9,8 +9,10 @@
     "@graphile/lru": "^4.11.0"
   },
   "scripts": {
-    "prepack": "tsc",
-    "test": "node --test"
+    "build": "tsc",
+    "watch": "tsc -w",
+    "prepack": "yarn build",
+    "test": "yarn build && node --test"
   },
   "repository": {
     "type": "git",

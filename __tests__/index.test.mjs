@@ -30,10 +30,12 @@ describe("KJSONLGetter", async () => {
     const value = await getter.get("nxkey");
     assert.equal(value, undefined);
   });
+
   it("doesn't get confused when an escaped key doesn't exist", async () => {
     const value = await getter.get('nx"key');
     assert.equal(value, undefined);
   });
+
   it("can read a key that exists, again", () => {
     // Note: not awaiting this because we want to test that the runloop tick
     // isn't necessary when it's already cached
