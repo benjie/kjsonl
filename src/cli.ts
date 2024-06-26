@@ -76,9 +76,10 @@ ${outputFlags(baseParseArgsConfig.options)}
     } satisfies ParseArgsConfigExtended;
     const parseResult = parseArgs(parseArgsConfig);
 
-    if (parseResult.values.help) {
+    function help(message?: string) {
       console.log(
-        `
+        `\
+${message ? message + "\n\n" : ""}\
 ${command.description}
 
 Usage:
@@ -87,13 +88,20 @@ Usage:
     
 Flags:
 
-${outputFlags(baseParseArgsConfig.options)}
+${outputFlags(parseArgsConfig.options)}
 `.trim(),
       );
-      return;
     }
+    if (parseResult.values.help) {
+      return help();
+    }
+    const { values, positionals } = parseResult;
 
-    await runners[commandName](parseResult as any);
+    await runners[commandName]({
+      values: values as any,
+      positionals: positionals.slice(1),
+      help,
+    });
     return;
   }
 }

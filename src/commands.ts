@@ -1,9 +1,11 @@
+import { open } from "fs/promises";
 import {
   Commands,
   Evaluate,
   ParseArgsConfigExtended,
   ParsedResults,
 } from "./interfaces.js";
+import { kjsonlLines } from "./lines.js";
 
 export const baseParseArgsConfig = {
   options: {
@@ -26,26 +28,39 @@ export const baseParseArgsConfig = {
 
 export const commands = {
   delete: {
-    example: "kjsonl delete path/to/file.kjsonl key1 [key2...]",
+    example: "kjsonl delete -t path/to/file.kjsonl key1 [key2...]",
     description: "Delete the given keys from the given KJSONL file",
-    options: {},
+    options: {
+      target: {
+        short: "t",
+        type: "string",
+        description: "The file to delete keys from",
+        placeholder: "target.kjsonl",
+      },
+    },
     allowPositionals: true,
   },
   json: {
     example: "kjsonl json path/to/file.kjsonl",
     description: "Output the given kjsonl file as JSON",
-    options: {},
+    options: {
+      compact: {
+        short: "c",
+        description: "compact instead of pretty-printed output",
+        type: "boolean",
+      },
+    },
     allowPositionals: true,
   },
   merge: {
-    example: "kjsonl merge -o target.kjsonl source1.kjsonl [source2.kjsonl...]",
+    example: "kjsonl merge -t target.kjsonl source1.kjsonl [source2.kjsonl...]",
     description:
       "Merge the contents of the given source files into the target file. If the target file doesn't exist, create it.",
     options: {
-      output: {
-        short: "o",
+      target: {
+        short: "t",
         type: "string",
-        description: "The output file to write the result to",
+        description: "The file to write the result to",
         placeholder: "target.kjsonl",
       },
     },
@@ -59,14 +74,32 @@ export const runners: {
       options: (typeof baseParseArgsConfig)["options"] &
         Evaluate<(typeof commands)[TKey]["options"]>;
       allowPositionals: (typeof commands)[TKey]["allowPositionals"];
-    }>,
+    }> & { help(message: string): void },
   ) => Promise<void>;
 } = {
   async delete({ values, positionals }) {
     console.log({ values, positionals });
   },
-  async json({ values, positionals }) {
-    console.log({ values, positionals });
+  async json({ values, positionals, help }) {
+    if (positionals.length !== 1) {
+      return help("Expected exactly one positional argument.");
+    }
+    const { compact = false } = values;
+    const filePath = positionals[0];
+    const handle = await open(filePath, "r");
+    process.stdout.write("{");
+    let first = true;
+    for await (const lineDetails of kjsonlLines(handle)) {
+      const { keyIsJSON, keyBuffer, valueBuffer } = lineDetails;
+      const key = keyIsJSON
+        ? JSON.parse(keyBuffer.toString("utf8"))
+        : keyBuffer.toString("utf8");
+      process.stdout.write(
+        `${first ? "" : ","}${compact ? "" : `\n  `}${JSON.stringify(key)}:${compact ? "" : " "}${valueBuffer.toString("utf8")}`,
+      );
+      first = false;
+    }
+    process.stdout.write(`${first || compact ? "" : "\n"}}\n`);
   },
   async merge({ values, positionals }) {
     console.log({ values, positionals });
