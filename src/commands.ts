@@ -1,4 +1,4 @@
-import { open } from "fs/promises";
+import { open, rename } from "fs/promises";
 import {
   Commands,
   Evaluate,
@@ -6,6 +6,7 @@ import {
   ParsedResults,
 } from "./interfaces.js";
 import { kjsonlLines } from "./lines.js";
+import { COLON_BUFFER, NEWLINE_BUFFER } from "./constants.js";
 
 export const baseParseArgsConfig = {
   options: {
@@ -36,6 +37,7 @@ export const commands = {
         type: "string",
         description: "The file to delete keys from",
         placeholder: "target.kjsonl",
+        required: true,
       },
     },
     allowPositionals: true,
@@ -62,6 +64,7 @@ export const commands = {
         type: "string",
         description: "The file to write the result to",
         placeholder: "target.kjsonl",
+        required: true,
       },
     },
     allowPositionals: true,
@@ -77,9 +80,36 @@ export const runners: {
     }> & { help(message: string): void },
   ) => Promise<void>;
 } = {
-  async delete({ values, positionals }) {
-    console.log({ values, positionals });
+  async delete({ values, positionals, help }) {
+    if (positionals.length < 1) {
+      return help("Expected at least one key to delete.");
+    }
+
+    const filePath = values.target!;
+    const writePath = filePath + ".tmpreplacement";
+    const handle = await open(filePath, "r");
+    const writeHandle = await open(writePath, "w");
+    for await (const lineDetails of kjsonlLines(handle)) {
+      const { keyIsJSON, keyBuffer, valueBuffer } = lineDetails;
+      const key = keyIsJSON
+        ? JSON.parse(keyBuffer.toString("utf8"))
+        : keyBuffer.toString("utf8");
+      if (!positionals.includes(key)) {
+        // copy to output
+        const line = Buffer.concat([
+          keyBuffer,
+          COLON_BUFFER,
+          valueBuffer,
+          NEWLINE_BUFFER,
+        ]);
+        await writeHandle.write(line);
+      }
+    }
+    await handle.close();
+    await writeHandle.close();
+    await rename(writePath, filePath);
   },
+
   async json({ values, positionals, help }) {
     if (positionals.length !== 1) {
       return help("Expected exactly one positional argument.");
@@ -99,8 +129,10 @@ export const runners: {
       );
       first = false;
     }
+    await handle.close();
     process.stdout.write(`${first || compact ? "" : "\n"}}\n`);
   },
+
   async merge({ values, positionals }) {
     console.log({ values, positionals });
   },

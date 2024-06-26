@@ -95,11 +95,25 @@ ${outputFlags(parseArgsConfig.options)}
     if (parseResult.values.help) {
       return help();
     }
-    const { values, positionals } = parseResult;
+    const {
+      values,
+      positionals: [_commandName, ...positionals],
+    } = parseResult as { values: any; positionals: string[] };
+
+    // check required
+    for (const [optionName, spec] of Object.entries(
+      parseArgsConfig.options as ParseArgOptionsConfigExtended,
+    )) {
+      if (spec.required) {
+        if (values[optionName] == null) {
+          return help(`Option '--${optionName}' is required`);
+        }
+      }
+    }
 
     await runners[commandName]({
-      values: values as any,
-      positionals: positionals.slice(1),
+      values,
+      positionals,
       help,
     });
     return;

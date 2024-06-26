@@ -7,6 +7,7 @@ type ParseArgOptionConfig = Exclude<
 export type ParseArgOptionConfigExtended = ParseArgOptionConfig & {
   description?: string;
   placeholder?: string;
+  required?: boolean;
 };
 export type ParseArgOptionsConfigExtended = {
   [argName: string]: ParseArgOptionConfigExtended;
