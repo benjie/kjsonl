@@ -46,6 +46,10 @@ Flags:
     Output the version
 ```
 
+NOTE: currently the CLI makes assumptions that the files are KJSONL (sorted)
+files not KJSONLU (unsorted) files; this may impact some operations - for
+example, merge may not output what you would expect.
+
 ## KJSONL spec
 
 **WORK IN PROGRESS**
