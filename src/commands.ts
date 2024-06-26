@@ -1,12 +1,14 @@
-import { open, rename } from "fs/promises";
+import { FileHandle, open, rename } from "fs/promises";
 import {
   Commands,
   Evaluate,
+  KJSONLLineDigest,
   ParseArgsConfigExtended,
   ParsedResults,
 } from "./interfaces.js";
 import { kjsonlLines } from "./lines.js";
 import { COLON_BUFFER, NEWLINE_BUFFER } from "./constants.js";
+import { sort } from "./sort.js";
 
 export const baseParseArgsConfig = {
   options: {
@@ -134,6 +136,103 @@ export const runners: {
   },
 
   async merge({ values, positionals }) {
-    console.log({ values, positionals });
+    const filePath = values.target!;
+    const writePath = filePath + ".tmpreplacement";
+
+    const handles: FileHandle[] = [];
+    const handleFilePaths: string[] = [];
+
+    try {
+      const handle = await open(filePath, "r");
+      handles.push(handle);
+      handleFilePaths.push(filePath);
+    } catch (e: any) {
+      if (e.code === "ENOENT") {
+      } else {
+        throw e;
+      }
+    }
+
+    for (const filePath of positionals) {
+      const handle = await open(filePath, "r");
+      handles.push(handle);
+      handleFilePaths.push(filePath);
+    }
+
+    const l = handles.length;
+
+    // Array of length l
+    const lineGenerators = handles.map((handle) => kjsonlLines(handle));
+    async function getNext(g: AsyncGenerator<KJSONLLineDigest>) {
+      const n = await g.next();
+      if (n.done) {
+        return null;
+      }
+      const v = n.value;
+      const kText = v.keyBuffer.toString("utf8");
+      return {
+        ...v,
+        key: v.keyIsJSON ? JSON.parse(kText) : kText,
+      };
+    }
+    // Array of length l
+    const lineGeneratorNext = await Promise.all(lineGenerators.map(getNext));
+
+    const writeHandle = await open(writePath, "w");
+    let lastKey: string | null = null;
+    while (lineGeneratorNext.some((d) => d !== null)) {
+      let winner: {
+        key: string;
+        matches: Array<{
+          index: number;
+          match: KJSONLLineDigest & { key: string };
+        }>;
+      } | null = null;
+      for (let index = 0; index < l; index++) {
+        const n = lineGeneratorNext[index];
+        if (n === null) continue;
+        if (winner === null) {
+          winner = {
+            key: n.key,
+            matches: [{ index, match: n }],
+          };
+        } else {
+          const s = sort(n.key, winner.key);
+          if (s < 0) {
+            winner = {
+              key: n.key,
+              matches: [{ index, match: n }],
+            };
+          } else if (s === 0) {
+            winner.matches.push({ index, match: n });
+          }
+        }
+      }
+      if (winner === null) {
+        throw new Error(`Should be impossible`);
+      }
+      if (lastKey === winner.key) {
+        console.warn(
+          `Duplicate key '${lastKey}' found in '${winner.matches.map(({ index }) => handleFilePaths[index]).join("', '")}'; ignoring duplicate entries (earlier entry wins).`,
+        );
+      } else {
+        lastKey = winner.key;
+        const lastMatch = winner.matches[winner.matches.length - 1].match;
+        const line = Buffer.concat([
+          lastMatch.keyBuffer,
+          COLON_BUFFER,
+          lastMatch.valueBuffer,
+          NEWLINE_BUFFER,
+        ]);
+        await writeHandle.write(line);
+      }
+      for (const { index } of winner.matches) {
+        lineGeneratorNext[index] = await getNext(lineGenerators[index]);
+      }
+    }
+
+    await Promise.all(handles.map((h) => h.close()));
+    await writeHandle.close();
+    await rename(writePath, filePath);
   },
 };

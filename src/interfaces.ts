@@ -28,3 +28,13 @@ export interface Commands {
 }
 
 export type Evaluate<T> = { [K in keyof T]: T[K] };
+
+export interface KJSONLLineDigest {
+  lineNumber: number;
+  position: number;
+  keyIsJSON: boolean;
+  keyBuffer: Buffer;
+  valueBuffer: Buffer;
+  valueStart: number;
+  valueEnd: number;
+}
