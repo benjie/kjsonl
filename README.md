@@ -43,6 +43,14 @@ following capabilities:
 ```
 Usage:
 
+  kjsonl get path/to/file.kjsonl key
+
+    Get the value for the given key within the KJSONL file.
+
+  kjsonl keys path/to/file.kjsonl
+
+    Output the keys from the given KJSONL file.
+
   kjsonl json path/to/file.kjsonl
 
     Output the given kjsonl file as JSON.

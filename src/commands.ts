@@ -30,6 +30,24 @@ export const baseParseArgsConfig = {
 } satisfies ParseArgsConfigExtended;
 
 export const commands = {
+  get: {
+    example: "kjsonl get path/to/file.kjsonl key",
+    description: "Get the value for the given key within the KJSONL file.",
+    options: {
+      compact: {
+        short: "c",
+        description: "compact instead of pretty-printed output",
+        type: "boolean",
+      },
+    },
+    allowPositionals: true,
+  },
+  keys: {
+    example: "kjsonl keys path/to/file.kjsonl",
+    description: "Output the keys from the given KJSONL file.",
+    options: {},
+    allowPositionals: true,
+  },
   json: {
     example: "kjsonl json path/to/file.kjsonl",
     description: "Output the given kjsonl file as JSON.",
@@ -82,6 +100,47 @@ export const runners: {
     }> & { help(message: string): void },
   ) => Promise<void>;
 } = {
+  async get({ values, positionals, help }) {
+    if (positionals.length !== 2) {
+      return help("Expected exactly two positional argument.");
+    }
+    const { compact = false } = values;
+    const filePath = positionals[0];
+    const searchKey = positionals[1];
+    const handle = await open(filePath, "r");
+    for await (const lineDetails of kjsonlLines(handle)) {
+      const { keyIsJSON, keyBuffer, valueBuffer } = lineDetails;
+      const key = keyIsJSON
+        ? JSON.parse(keyBuffer.toString("utf8"))
+        : keyBuffer.toString("utf8");
+      if (key === searchKey) {
+        console.log(
+          compact
+            ? valueBuffer.toString("utf8")
+            : JSON.stringify(JSON.parse(valueBuffer.toString("utf8")), null, 2),
+        );
+        break;
+      }
+    }
+    await handle.close();
+  },
+
+  async keys({ positionals, help }) {
+    if (positionals.length !== 1) {
+      return help("Expected exactly one positional argument.");
+    }
+    const filePath = positionals[0];
+    const handle = await open(filePath, "r");
+    for await (const lineDetails of kjsonlLines(handle)) {
+      const { keyIsJSON, keyBuffer } = lineDetails;
+      const key = keyIsJSON
+        ? JSON.parse(keyBuffer.toString("utf8"))
+        : keyBuffer.toString("utf8");
+      console.log(key);
+    }
+    await handle.close();
+  },
+
   async json({ values, positionals, help }) {
     if (positionals.length !== 1) {
       return help("Expected exactly one positional argument.");
