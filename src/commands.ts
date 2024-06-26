@@ -30,23 +30,9 @@ export const baseParseArgsConfig = {
 } satisfies ParseArgsConfigExtended;
 
 export const commands = {
-  delete: {
-    example: "kjsonl delete -t path/to/file.kjsonl key1 [key2...]",
-    description: "Delete the given keys from the given KJSONL file",
-    options: {
-      target: {
-        short: "t",
-        type: "string",
-        description: "The file to delete keys from",
-        placeholder: "target.kjsonl",
-        required: true,
-      },
-    },
-    allowPositionals: true,
-  },
   json: {
     example: "kjsonl json path/to/file.kjsonl",
-    description: "Output the given kjsonl file as JSON",
+    description: "Output the given kjsonl file as JSON.",
     options: {
       compact: {
         short: "c",
@@ -59,12 +45,26 @@ export const commands = {
   merge: {
     example: "kjsonl merge -t target.kjsonl source1.kjsonl [source2.kjsonl...]",
     description:
-      "Merge the contents of the given source files into the target file. If the target file doesn't exist, create it.",
+      "Merge the contents of the given source files with the contents of the target file. If the target file doesn't exist, create it.",
     options: {
       target: {
         short: "t",
         type: "string",
         description: "The file to write the result to",
+        placeholder: "target.kjsonl",
+        required: true,
+      },
+    },
+    allowPositionals: true,
+  },
+  delete: {
+    example: "kjsonl delete -t path/to/file.kjsonl key1 [key2...]",
+    description: "Delete the given keys from the given KJSONL file.",
+    options: {
+      target: {
+        short: "t",
+        type: "string",
+        description: "The file to delete keys from",
         placeholder: "target.kjsonl",
         required: true,
       },
@@ -82,36 +82,6 @@ export const runners: {
     }> & { help(message: string): void },
   ) => Promise<void>;
 } = {
-  async delete({ values, positionals, help }) {
-    if (positionals.length < 1) {
-      return help("Expected at least one key to delete.");
-    }
-
-    const filePath = values.target!;
-    const writePath = filePath + ".tmpreplacement";
-    const handle = await open(filePath, "r");
-    const writeHandle = await open(writePath, "w");
-    for await (const lineDetails of kjsonlLines(handle)) {
-      const { keyIsJSON, keyBuffer, valueBuffer } = lineDetails;
-      const key = keyIsJSON
-        ? JSON.parse(keyBuffer.toString("utf8"))
-        : keyBuffer.toString("utf8");
-      if (!positionals.includes(key)) {
-        // copy to output
-        const line = Buffer.concat([
-          keyBuffer,
-          COLON_BUFFER,
-          valueBuffer,
-          NEWLINE_BUFFER,
-        ]);
-        await writeHandle.write(line);
-      }
-    }
-    await handle.close();
-    await writeHandle.close();
-    await rename(writePath, filePath);
-  },
-
   async json({ values, positionals, help }) {
     if (positionals.length !== 1) {
       return help("Expected exactly one positional argument.");
@@ -232,6 +202,36 @@ export const runners: {
     }
 
     await Promise.all(handles.map((h) => h.close()));
+    await writeHandle.close();
+    await rename(writePath, filePath);
+  },
+
+  async delete({ values, positionals, help }) {
+    if (positionals.length < 1) {
+      return help("Expected at least one key to delete.");
+    }
+
+    const filePath = values.target!;
+    const writePath = filePath + ".tmpreplacement";
+    const handle = await open(filePath, "r");
+    const writeHandle = await open(writePath, "w");
+    for await (const lineDetails of kjsonlLines(handle)) {
+      const { keyIsJSON, keyBuffer, valueBuffer } = lineDetails;
+      const key = keyIsJSON
+        ? JSON.parse(keyBuffer.toString("utf8"))
+        : keyBuffer.toString("utf8");
+      if (!positionals.includes(key)) {
+        // copy to output
+        const line = Buffer.concat([
+          keyBuffer,
+          COLON_BUFFER,
+          valueBuffer,
+          NEWLINE_BUFFER,
+        ]);
+        await writeHandle.write(line);
+      }
+    }
+    await handle.close();
     await writeHandle.close();
     await rename(writePath, filePath);
   },
