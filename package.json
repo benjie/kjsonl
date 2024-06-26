@@ -5,6 +5,9 @@
   "author": "Benjie Gillam <code@benjiegillam.com>",
   "license": "MIT",
   "main": "dist/index.js",
+  "bin": {
+    "kjsonl": "dist/cli.js"
+  },
   "dependencies": {
     "@graphile/lru": "^4.11.0"
   },
