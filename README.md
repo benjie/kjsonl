@@ -13,6 +13,28 @@ favourite_book: {"title": "Good Omens", "authors": ["Terry Pratchett", "Neil Gai
 meaning_of_life: 42
 ```
 
+## Installation
+
+```
+npm install kjsonl
+```
+
+## Library
+
+```ts
+import { KJSONLGetter } from "kjsonl";
+
+// Create a getter for your chosen KJSONL file:
+const getter = new KJSONLGetter(`path/to/file.kjsonl`);
+
+// Your code here; within which you'll probably read one or more keys from the
+// kjsonl file:
+const value = await getter.get("my_key");
+
+// Finally, release the getter:
+await getter.release();
+```
+
 ## CLI
 
 The `kjsonl` module is shipped with a command-line `kjsonl` utility with the
