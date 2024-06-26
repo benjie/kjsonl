@@ -1,6 +1,6 @@
 {
   "name": "kjsonl",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Utilities for working with KJSONL (.kjsonl) files - like JSONL but for dealing with key-value stores.",
   "author": "Benjie Gillam <code@benjiegillam.com>",
   "license": "MIT",
