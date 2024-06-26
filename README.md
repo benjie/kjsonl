@@ -1,7 +1,5 @@
 # kjsonl
 
-**WORK IN PROGRESS**
-
 An easy to parse file format for large amounts of key-value storage in JSON format.
 
 - KJSONL (`.kjsonl`) - key, JSON, linefeed
@@ -15,9 +13,72 @@ favourite_book: {"title": "Good Omens", "authors": ["Terry Pratchett", "Neil Gai
 meaning_of_life: 42
 ```
 
-Basic rules:
+## Installation
 
-1. Files are encoded in UTF8
+```
+npm install kjsonl
+```
+
+## Library
+
+```ts
+import { KJSONLGetter } from "kjsonl";
+
+// Create a getter for your chosen KJSONL file:
+const getter = new KJSONLGetter(`path/to/file.kjsonl`);
+
+// Your code here; within which you'll probably read one or more keys from the
+// kjsonl file:
+const value = await getter.get("my_key");
+
+// Finally, release the getter:
+await getter.release();
+```
+
+## CLI
+
+The `kjsonl` module is shipped with a command-line `kjsonl` utility with the
+following capabilities:
+
+```
+Usage:
+
+  kjsonl json path/to/file.kjsonl
+
+    Output the given kjsonl file as JSON.
+
+  kjsonl merge -t target.kjsonl source1.kjsonl [source2.kjsonl...]
+
+    Merge the contents of the given source files with the contents of the target file. If the target file doesn't exist, create it.
+
+  kjsonl delete -t path/to/file.kjsonl key1 [key2...]
+
+    Delete the given keys from the given KJSONL file.
+
+Flags:
+
+--help
+-h
+
+    Output available CLI flags
+
+--version
+-v
+
+    Output the version
+```
+
+NOTE: currently the CLI makes assumptions that the files are KJSONL (sorted)
+files not KJSONLU (unsorted) files; this may impact some operations - for
+example, merge may not output what you would expect.
+
+## KJSONL spec
+
+**WORK IN PROGRESS**
+
+A KJSONL or KJSONLU file follows these rules:
+
+1. File is encoded in UTF8
 1. Lines are delimited by `\n` or `\r\n`
 1. Lines beginning with `#` are ignored
 1. Empty lines are ignored
@@ -25,24 +86,28 @@ Basic rules:
    1. First the encoded key
    1. Next a colon
    1. Next, optionally, a single space character
-   1. Finally, the JSON-encoded value all on one line
+   1. Finally, the JSON-encoded value with all optional whitespace omitted
 1. For `.kjsonl` files, other than ignored lines, every line in the file must
    be sorted by the encoded value of the key
 
-Encoding a key is simple:
+Encoding a key:
 
 1. If `key` contains a "special character" or is empty, return `JSON.stringify(key)`
 1. Otherwise return `key`
-
-NOTE: when serializing to KJSONL in other languages, it's essential to match
-the behavior of JavaScript's `JSON.stringify()` function.
 
 Special characters are any characters that require escaping in JSON, any
 character with a UTF8 code point value greater than 127, any whitespace
 character, and the `:` and `#` characters. (TBC.)
 
-JSON encoded values must have all optional whitespace removed (in particular
-this means they will not contain CR or LF characters).
+NOTE: when serializing to KJSONL in other languages, it's essential to match
+the behavior of JavaScript's `JSON.stringify()` function.
+
+JSON encoded keys must omit all optional whitespace characters (this means a
+JSON encoded key will always start and finish with a double quote (`"`)
+character).
+
+JSON encoded values must not contain newline (CR) or linefeed (LF) characters,
+all other optional whitespace should be omitted.
 
 Sorted keys: to ensure that git diffs are stable, and to enable dictionary
 searches across extremely large files are possible, KJSONL files require that

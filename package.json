@@ -12,6 +12,7 @@
     "build": "tsc",
     "watch": "tsc -w",
     "prepack": "yarn build",
+    "version": "node scripts/postversion.mjs && git add src/version.ts",
     "test": "yarn build && node --test"
   },
   "repository": {

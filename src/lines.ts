@@ -1,4 +1,5 @@
 import { FileHandle } from "fs/promises";
+import { KJSONLLineDigest } from "./interfaces";
 
 const NEWLINE = "\n".charCodeAt(0);
 const DQUOT = '"'.charCodeAt(0);
@@ -15,7 +16,10 @@ export async function* kjsonlLines(
   let filePosition = 0;
   let alive = true;
   let lines = 0;
-  const processKJSONLLine = (line: Buffer, offset: number) => {
+  const processKJSONLLine = (
+    line: Buffer,
+    offset: number,
+  ): KJSONLLineDigest | null => {
     const position = filePosition + offset;
     const lineNumber = ++lines;
     const l = line.length;
