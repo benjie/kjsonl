@@ -6,6 +6,9 @@ const DQUOT = '"'.charCodeAt(0);
 const COLON = ":".charCodeAt(0);
 const BACKSLASH = "\\".charCodeAt(0);
 const SPACE = " ".charCodeAt(0);
+const GT = ">".charCodeAt(0);
+const LT = "<".charCodeAt(0);
+const EQ = "=".charCodeAt(0);
 
 export async function* kjsonlLines(
   fileHandle: FileHandle,
@@ -27,6 +30,34 @@ export async function* kjsonlLines(
       // Ignore empty lines
       return null;
     }
+
+    // Git merge conflicts
+    // ```
+    // <<<<<<< STUFF HERE
+    // =======
+    // >>>>>>> STUFF HERE
+    // ```
+    const firstChar = line[0];
+    if (
+      // Starts with one of `<=>`
+      (firstChar === GT || firstChar === LT || firstChar === EQ) &&
+      // And either has 7 characters, or the 8th character is a space
+      (l === 7 || (l > 7 && line[7] === SPACE))
+    ) {
+      // Could be!
+      let same = true;
+      for (let i = 1; i < 7; i++) {
+        if (line[i] !== firstChar) {
+          same = false;
+          break;
+        }
+      }
+      if (same) {
+        // It's a git conflict marker; ignore - take both keys.
+        return null;
+      }
+    }
+
     let keyBuffer: Buffer | undefined;
     const keyIsJSON = line[0] === DQUOT;
     if (keyIsJSON) {
